@@ -9,6 +9,7 @@ import (
 )
 
 const (
+	defaultTagSize   = 16
 	defaultNonceSize = 16
 )
 
@@ -26,10 +27,9 @@ func (e *eax) Overhead() int {
 	return e.tagSize
 }
 
-func NewEAX(block cipher.Block, tagSize int) (cipher.AEAD, error) {
-	return NewEAXWithNonceAndTagSize(block, defaultNonceSize, tagSize)
+func NewEAX(block cipher.Block) (cipher.AEAD, error) {
+	return NewEAXWithNonceAndTagSize(block, defaultNonceSize, defaultTagSize)
 }
-
 func NewEAXWithNonceAndTagSize(
 	block cipher.Block, nonceSize, tagSize int) (cipher.AEAD, error) {
 	if nonceSize < 1 {
