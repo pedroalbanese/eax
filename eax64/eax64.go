@@ -1,4 +1,4 @@
-package eax
+package eax64
 
 import (
 	"crypto/cipher"
