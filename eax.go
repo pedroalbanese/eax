@@ -8,10 +8,12 @@ import (
 	"github.com/pedroalbanese/eax/byteutil"
 )
 
+/*
 const (
 	defaultTagSize   = 16
 	defaultNonceSize = 16
 )
+*/
 
 type eax struct {
 	block     cipher.Block
