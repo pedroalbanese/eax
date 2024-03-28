@@ -27,8 +27,29 @@ func (e *eax) Overhead() int {
 	return e.tagSize
 }
 
+/*
 func NewEAX(block cipher.Block) (cipher.AEAD, error) {
 	return NewEAXWithNonceAndTagSize(block, defaultNonceSize, defaultTagSize)
+}
+
+func NewEAXWithNonceAndTagSize(
+	block cipher.Block, nonceSize, tagSize int) (cipher.AEAD, error) {
+	if nonceSize < 1 {
+		return nil, eaxError("Cannot initialize EAX with nonceSize = 0")
+	}
+	if tagSize > block.BlockSize() {
+		return nil, eaxError("Custom tag length exceeds blocksize")
+	}
+	return &eax{
+		block:     block,
+		tagSize:   tagSize,
+		nonceSize: nonceSize,
+	}, nil
+}
+*/
+
+func NewEAX(block cipher.Block, tagSize int) (cipher.AEAD, error) {
+	return NewEAXWithNonceAndTagSize(block, defaultNonceSize, tagSize)
 }
 
 func NewEAXWithNonceAndTagSize(
