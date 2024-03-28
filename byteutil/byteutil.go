@@ -30,6 +30,13 @@ func GfnDouble(input []byte, blockSize int) []byte {
 		shifted := ShiftBytesLeft(input)
 		shifted[63] ^= ((input[0] >> 7) * 0x87)
 		return shifted
+	case 128: // 1024 bits
+		if len(input) != 128 {
+			panic("Doubling in GFn only implemented for n = 512")
+		}
+		shifted := ShiftBytesLeft(input)
+		shifted[127] ^= ((input[0] >> 7) * 0x87)
+		return shifted
 	default:
 		panic("Invalid block size")
 	}
