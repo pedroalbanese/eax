@@ -1,4 +1,4 @@
-package eax512
+package eax64
 
 import (
 	"crypto/cipher"
@@ -7,23 +7,23 @@ import (
 )
 
 const (
-	defaultTagSize   = 64 // Tag size for 512-bit blocks
+	defaultTagSize   = 8 // Tag size for 64-bit blocks
 	defaultNonceSize = 16 // Nonce size (unchanged)
 )
 
-type eax512 struct {
+type eax256 struct {
 	block     cipher.Block
 	tagSize   int
 	nonceSize int
 }
 
 // NonceSize returns the size of the nonce.
-func (e *eax512) NonceSize() int {
+func (e *eax256) NonceSize() int {
 	return e.nonceSize
 }
 
 // Overhead returns the tag size.
-func (e *eax512) Overhead() int {
+func (e *eax256) Overhead() int {
 	return e.tagSize
 }
 
@@ -35,12 +35,12 @@ func NewEAX(block cipher.Block) (cipher.AEAD, error) {
 // NewEAXWithNonceAndTagSize returns a new EAX instance with custom nonce and tag sizes.
 func NewEAXWithNonceAndTagSize(block cipher.Block, nonceSize, tagSize int) (cipher.AEAD, error) {
 	if nonceSize < 1 {
-		return nil, eax512Error("Cannot initialize EAX with nonceSize = 0")
+		return nil, eax256Error("Cannot initialize EAX with nonceSize = 0")
 	}
 	if tagSize > block.BlockSize() {
-		return nil, eax512Error("Custom tag length exceeds blocksize")
+		return nil, eax256Error("Custom tag length exceeds blocksize")
 	}
-	return &eax512{
+	return &eax256{
 		block:     block,
 		tagSize:   tagSize,
 		nonceSize: nonceSize,
@@ -48,9 +48,9 @@ func NewEAXWithNonceAndTagSize(block cipher.Block, nonceSize, tagSize int) (ciph
 }
 
 // Seal encrypts and authenticates plaintext with associated data, returning the ciphertext.
-func (e *eax512) Seal(dst, nonce, plaintext, adata []byte) []byte {
+func (e *eax256) Seal(dst, nonce, plaintext, adata []byte) []byte {
 	if len(nonce) > e.nonceSize {
-		panic("crypto/eax512: Nonce too long for this instance")
+		panic("crypto/eax256: Nonce too long for this instance")
 	}
 	ret, out := SliceForAppend(dst, len(plaintext)+e.tagSize)
 	omacNonce := e.omacT(0, nonce)
@@ -70,12 +70,12 @@ func (e *eax512) Seal(dst, nonce, plaintext, adata []byte) []byte {
 }
 
 // Open decrypts and authenticates ciphertext with associated data, returning the plaintext.
-func (e *eax512) Open(dst, nonce, ciphertext, adata []byte) ([]byte, error) {
+func (e *eax256) Open(dst, nonce, ciphertext, adata []byte) ([]byte, error) {
 	if len(nonce) > e.nonceSize {
-		panic("crypto/eax512: Nonce too long for this instance")
+		panic("crypto/eax256: Nonce too long for this instance")
 	}
 	if len(ciphertext) < e.tagSize {
-		return nil, eax512Error("Ciphertext shorter than tag length")
+		return nil, eax256Error("Ciphertext shorter than tag length")
 	}
 	sep := len(ciphertext) - e.tagSize
 
@@ -89,7 +89,7 @@ func (e *eax512) Open(dst, nonce, ciphertext, adata []byte) ([]byte, error) {
 	}
 
 	if subtle.ConstantTimeCompare(ciphertext[sep:], tag) != 1 {
-		return nil, eax512Error("Tag authentication failed")
+		return nil, eax256Error("Tag authentication failed")
 	}
 
 	ret, out := SliceForAppend(dst, len(ciphertext))
@@ -100,7 +100,7 @@ func (e *eax512) Open(dst, nonce, ciphertext, adata []byte) ([]byte, error) {
 }
 
 // omacT calculates the OMAC for a given type.
-func (e *eax512) omacT(t byte, plaintext []byte) []byte {
+func (e *eax256) omacT(t byte, plaintext []byte) []byte {
 	blockSize := e.block.BlockSize()
 	byteT := make([]byte, blockSize)
 	byteT[blockSize-1] = t
@@ -109,7 +109,7 @@ func (e *eax512) omacT(t byte, plaintext []byte) []byte {
 }
 
 // omac calculates the OMAC for a given plaintext.
-func (e *eax512) omac(plaintext []byte) []byte {
+func (e *eax256) omac(plaintext []byte) []byte {
 	blockSize := e.block.BlockSize()
 	L := make([]byte, blockSize)
 	e.block.Encrypt(L, L)
@@ -125,7 +125,7 @@ func (e *eax512) omac(plaintext []byte) []byte {
 }
 
 // pad pads the plaintext using the EAX algorithm.
-func (e *eax512) pad(plaintext, B, P []byte) []byte {
+func (e *eax256) pad(plaintext, B, P []byte) []byte {
 	blockSize := e.block.BlockSize()
 	if len(plaintext) != 0 && len(plaintext)%blockSize == 0 {
 		return RightXor(plaintext, B)
@@ -137,17 +137,17 @@ func (e *eax512) pad(plaintext, B, P []byte) []byte {
 	return RightXor(padded, P)
 }
 
-// eax512Error creates a new EAX error.
-func eax512Error(err string) error {
-	return errors.New("crypto/eax512: " + err)
+// eax256Error creates a new EAX error.
+func eax256Error(err string) error {
+	return errors.New("crypto/eax256: " + err)
 }
 
 func GfnDouble(input []byte) []byte {
-	if len(input) != 64 {
-		panic("Doubling in GFn only implemented for n = 512")
+	if len(input) != 8 {
+		panic("Doubling in GFn only implemented for n = 64")
 	}
 	shifted := ShiftBytesLeft(input)
-	shifted[63] ^= ((input[0] >> 7) * 0x87)
+	shifted[7] ^= ((input[0] >> 7) * 0x87)
 	return shifted
 }
 
