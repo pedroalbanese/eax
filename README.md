@@ -1,2 +1,2 @@
 # eax
-Encrypt-Authenticate-Translate Mode of Operation for 128-bit Block Ciphers
+Encrypt-Authenticate-Translate Mode of Operation for Block Ciphers
