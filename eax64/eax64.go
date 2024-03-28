@@ -11,19 +11,19 @@ const (
 	defaultNonceSize = 16 // Nonce size (unchanged)
 )
 
-type eax256 struct {
+type eax64 struct {
 	block     cipher.Block
 	tagSize   int
 	nonceSize int
 }
 
 // NonceSize returns the size of the nonce.
-func (e *eax256) NonceSize() int {
+func (e *eax64) NonceSize() int {
 	return e.nonceSize
 }
 
 // Overhead returns the tag size.
-func (e *eax256) Overhead() int {
+func (e *eax64) Overhead() int {
 	return e.tagSize
 }
 
@@ -35,12 +35,12 @@ func NewEAX(block cipher.Block) (cipher.AEAD, error) {
 // NewEAXWithNonceAndTagSize returns a new EAX instance with custom nonce and tag sizes.
 func NewEAXWithNonceAndTagSize(block cipher.Block, nonceSize, tagSize int) (cipher.AEAD, error) {
 	if nonceSize < 1 {
-		return nil, eax256Error("Cannot initialize EAX with nonceSize = 0")
+		return nil, eax64Error("Cannot initialize EAX with nonceSize = 0")
 	}
 	if tagSize > block.BlockSize() {
-		return nil, eax256Error("Custom tag length exceeds blocksize")
+		return nil, eax64Error("Custom tag length exceeds blocksize")
 	}
-	return &eax256{
+	return &eax64{
 		block:     block,
 		tagSize:   tagSize,
 		nonceSize: nonceSize,
@@ -48,9 +48,9 @@ func NewEAXWithNonceAndTagSize(block cipher.Block, nonceSize, tagSize int) (ciph
 }
 
 // Seal encrypts and authenticates plaintext with associated data, returning the ciphertext.
-func (e *eax256) Seal(dst, nonce, plaintext, adata []byte) []byte {
+func (e *eax64) Seal(dst, nonce, plaintext, adata []byte) []byte {
 	if len(nonce) > e.nonceSize {
-		panic("crypto/eax256: Nonce too long for this instance")
+		panic("crypto/eax64: Nonce too long for this instance")
 	}
 	ret, out := SliceForAppend(dst, len(plaintext)+e.tagSize)
 	omacNonce := e.omacT(0, nonce)
@@ -70,12 +70,12 @@ func (e *eax256) Seal(dst, nonce, plaintext, adata []byte) []byte {
 }
 
 // Open decrypts and authenticates ciphertext with associated data, returning the plaintext.
-func (e *eax256) Open(dst, nonce, ciphertext, adata []byte) ([]byte, error) {
+func (e *eax64) Open(dst, nonce, ciphertext, adata []byte) ([]byte, error) {
 	if len(nonce) > e.nonceSize {
-		panic("crypto/eax256: Nonce too long for this instance")
+		panic("crypto/eax64: Nonce too long for this instance")
 	}
 	if len(ciphertext) < e.tagSize {
-		return nil, eax256Error("Ciphertext shorter than tag length")
+		return nil, eax64Error("Ciphertext shorter than tag length")
 	}
 	sep := len(ciphertext) - e.tagSize
 
@@ -89,7 +89,7 @@ func (e *eax256) Open(dst, nonce, ciphertext, adata []byte) ([]byte, error) {
 	}
 
 	if subtle.ConstantTimeCompare(ciphertext[sep:], tag) != 1 {
-		return nil, eax256Error("Tag authentication failed")
+		return nil, eax64Error("Tag authentication failed")
 	}
 
 	ret, out := SliceForAppend(dst, len(ciphertext))
@@ -100,7 +100,7 @@ func (e *eax256) Open(dst, nonce, ciphertext, adata []byte) ([]byte, error) {
 }
 
 // omacT calculates the OMAC for a given type.
-func (e *eax256) omacT(t byte, plaintext []byte) []byte {
+func (e *eax64) omacT(t byte, plaintext []byte) []byte {
 	blockSize := e.block.BlockSize()
 	byteT := make([]byte, blockSize)
 	byteT[blockSize-1] = t
@@ -109,7 +109,7 @@ func (e *eax256) omacT(t byte, plaintext []byte) []byte {
 }
 
 // omac calculates the OMAC for a given plaintext.
-func (e *eax256) omac(plaintext []byte) []byte {
+func (e *eax64) omac(plaintext []byte) []byte {
 	blockSize := e.block.BlockSize()
 	L := make([]byte, blockSize)
 	e.block.Encrypt(L, L)
@@ -125,7 +125,7 @@ func (e *eax256) omac(plaintext []byte) []byte {
 }
 
 // pad pads the plaintext using the EAX algorithm.
-func (e *eax256) pad(plaintext, B, P []byte) []byte {
+func (e *eax64) pad(plaintext, B, P []byte) []byte {
 	blockSize := e.block.BlockSize()
 	if len(plaintext) != 0 && len(plaintext)%blockSize == 0 {
 		return RightXor(plaintext, B)
@@ -137,9 +137,9 @@ func (e *eax256) pad(plaintext, B, P []byte) []byte {
 	return RightXor(padded, P)
 }
 
-// eax256Error creates a new EAX error.
-func eax256Error(err string) error {
-	return errors.New("crypto/eax256: " + err)
+// eax64Error creates a new EAX error.
+func eax64Error(err string) error {
+	return errors.New("crypto/eax64: " + err)
 }
 
 func GfnDouble(input []byte) []byte {
