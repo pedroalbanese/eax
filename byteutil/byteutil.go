@@ -1,5 +1,41 @@
 package byteutil
 
+func GfnDouble(input []byte, blockSize int) []byte {
+	switch blockSize {
+	case 8: // 64 bits
+		if len(input) != 8 {
+			panic("Doubling in GFn only implemented for n = 64")
+		}
+		shifted := ShiftBytesLeft(input)
+		shifted[7] ^= ((input[0] >> 7) * 0x87)
+		return shifted
+	case 16: // 128 bits
+		if len(input) != 16 {
+			panic("Doubling in GFn only implemented for n = 128")
+		}
+		shifted := ShiftBytesLeft(input)
+		shifted[15] ^= ((input[0] >> 7) * 0x87)
+		return shifted
+	case 32: // 256 bits
+		if len(input) != 32 {
+			panic("Doubling in GFn only implemented for n = 256")
+		}
+		shifted := ShiftBytesLeft(input)
+		shifted[31] ^= ((input[0] >> 7) * 0x87)
+		return shifted
+	case 64: // 512 bits
+		if len(input) != 64 {
+			panic("Doubling in GFn only implemented for n = 512")
+		}
+		shifted := ShiftBytesLeft(input)
+		shifted[63] ^= ((input[0] >> 7) * 0x87)
+		return shifted
+	default:
+		panic("Invalid block size")
+	}
+}
+
+/*
 func GfnDouble(input []byte) []byte {
 	if len(input) != 16 {
 		panic("Doubling in GFn only implemented for n = 128")
@@ -8,6 +44,7 @@ func GfnDouble(input []byte) []byte {
 	shifted[15] ^= ((input[0] >> 7) * 0x87)
 	return shifted
 }
+*/
 
 func ShiftBytesLeft(x []byte) []byte {
 	l := len(x)
