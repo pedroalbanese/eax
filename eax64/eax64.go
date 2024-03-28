@@ -1,4 +1,4 @@
-package eax64
+package eax
 
 import (
 	"crypto/cipher"
@@ -9,52 +9,48 @@ import (
 )
 
 const (
-	defaultTagSize   = 8 // Tag size for 64-bit blocks
-	defaultNonceSize = 16 // Nonce size (unchanged)
+	defaultTagSize   = 8
+	defaultNonceSize = 16
 )
 
-type eax64 struct {
+type eax struct {
 	block     cipher.Block
 	tagSize   int
 	nonceSize int
 }
 
-// NonceSize returns the size of the nonce.
-func (e *eax64) NonceSize() int {
+func (e *eax) NonceSize() int {
 	return e.nonceSize
 }
 
-// Overhead returns the tag size.
-func (e *eax64) Overhead() int {
+func (e *eax) Overhead() int {
 	return e.tagSize
 }
 
-// NewEAX returns a new EAX instance.
 func NewEAX(block cipher.Block) (cipher.AEAD, error) {
 	return NewEAXWithNonceAndTagSize(block, defaultNonceSize, defaultTagSize)
 }
 
-// NewEAXWithNonceAndTagSize returns a new EAX instance with custom nonce and tag sizes.
-func NewEAXWithNonceAndTagSize(block cipher.Block, nonceSize, tagSize int) (cipher.AEAD, error) {
+func NewEAXWithNonceAndTagSize(
+	block cipher.Block, nonceSize, tagSize int) (cipher.AEAD, error) {
 	if nonceSize < 1 {
-		return nil, eax64Error("Cannot initialize EAX with nonceSize = 0")
+		return nil, eaxError("Cannot initialize EAX with nonceSize = 0")
 	}
 	if tagSize > block.BlockSize() {
-		return nil, eax64Error("Custom tag length exceeds blocksize")
+		return nil, eaxError("Custom tag length exceeds blocksize")
 	}
-	return &eax64{
+	return &eax{
 		block:     block,
 		tagSize:   tagSize,
 		nonceSize: nonceSize,
 	}, nil
 }
 
-// Seal encrypts and authenticates plaintext with associated data, returning the ciphertext.
-func (e *eax64) Seal(dst, nonce, plaintext, adata []byte) []byte {
+func (e *eax) Seal(dst, nonce, plaintext, adata []byte) []byte {
 	if len(nonce) > e.nonceSize {
-		panic("crypto/eax64: Nonce too long for this instance")
+		panic("crypto/eax: Nonce too long for this instance")
 	}
-	ret, out := SliceForAppend(dst, len(plaintext)+e.tagSize)
+	ret, out := byteutil.SliceForAppend(dst, len(plaintext) + e.tagSize)
 	omacNonce := e.omacT(0, nonce)
 	omacAdata := e.omacT(1, adata)
 
@@ -71,13 +67,12 @@ func (e *eax64) Seal(dst, nonce, plaintext, adata []byte) []byte {
 	return ret
 }
 
-// Open decrypts and authenticates ciphertext with associated data, returning the plaintext.
-func (e *eax64) Open(dst, nonce, ciphertext, adata []byte) ([]byte, error) {
+func (e* eax) Open(dst, nonce, ciphertext, adata []byte) ([]byte, error) {
 	if len(nonce) > e.nonceSize {
-		panic("crypto/eax64: Nonce too long for this instance")
+		panic("crypto/eax: Nonce too long for this instance")
 	}
 	if len(ciphertext) < e.tagSize {
-		return nil, eax64Error("Ciphertext shorter than tag length")
+		return nil, eaxError("Ciphertext shorter than tag length")
 	}
 	sep := len(ciphertext) - e.tagSize
 
@@ -91,18 +86,17 @@ func (e *eax64) Open(dst, nonce, ciphertext, adata []byte) ([]byte, error) {
 	}
 
 	if subtle.ConstantTimeCompare(ciphertext[sep:], tag) != 1 {
-		return nil, eax64Error("Tag authentication failed")
+		return nil, eaxError("Tag authentication failed")
 	}
 
-	ret, out := SliceForAppend(dst, len(ciphertext))
+	ret, out := byteutil.SliceForAppend(dst, len(ciphertext))
 	ctr := cipher.NewCTR(e.block, omacNonce)
 	ctr.XORKeyStream(out, ciphertext[:sep])
 
 	return ret[:sep], nil
 }
 
-// omacT calculates the OMAC for a given type.
-func (e *eax64) omacT(t byte, plaintext []byte) []byte {
+func (e *eax) omacT(t byte, plaintext []byte) []byte {
 	blockSize := e.block.BlockSize()
 	byteT := make([]byte, blockSize)
 	byteT[blockSize-1] = t
@@ -110,13 +104,12 @@ func (e *eax64) omacT(t byte, plaintext []byte) []byte {
 	return e.omac(concat)
 }
 
-// omac calculates the OMAC for a given plaintext.
-func (e *eax64) omac(plaintext []byte) []byte {
+func (e *eax) omac(plaintext []byte) []byte {
 	blockSize := e.block.BlockSize()
 	L := make([]byte, blockSize)
 	e.block.Encrypt(L, L)
-	B := GfnDouble(L)
-	P := GfnDouble(B)
+	B := byteutil.GfnDouble(L)
+	P := byteutil.GfnDouble(B)
 
 	cbc := cipher.NewCBCEncrypter(e.block, make([]byte, blockSize))
 	padded := e.pad(plaintext, B, P)
@@ -126,20 +119,18 @@ func (e *eax64) omac(plaintext []byte) []byte {
 	return cbcCiphertext[len(cbcCiphertext)-blockSize:]
 }
 
-// pad pads the plaintext using the EAX algorithm.
-func (e *eax64) pad(plaintext, B, P []byte) []byte {
+func (e *eax) pad(plaintext, B, P []byte) []byte {
 	blockSize := e.block.BlockSize()
 	if len(plaintext) != 0 && len(plaintext)%blockSize == 0 {
-		return RightXor(plaintext, B)
+		return byteutil.RightXor(plaintext, B)
 	}
 
 	ending := make([]byte, blockSize-len(plaintext)%blockSize)
 	ending[0] = 0x80
 	padded := append(plaintext, ending...)
-	return RightXor(padded, P)
+	return byteutil.RightXor(padded, P)
 }
 
-// eax64Error creates a new EAX error.
-func eax64Error(err string) error {
-	return errors.New("crypto/eax64: " + err)
+func eaxError(err string) error {
+	return errors.New("crypto/eax: " + err)
 }
