@@ -108,8 +108,8 @@ func (e *eax) omac(plaintext []byte) []byte {
 	blockSize := e.block.BlockSize()
 	L := make([]byte, blockSize)
 	e.block.Encrypt(L, L)
-	B := byteutil.GfnDouble(L)
-	P := byteutil.GfnDouble(B)
+	B := byteutil.GfnDouble(L, 64)
+	P := byteutil.GfnDouble(B, 64)
 
 	cbc := cipher.NewCBCEncrypter(e.block, make([]byte, blockSize))
 	padded := e.pad(plaintext, B, P)
