@@ -9,6 +9,13 @@ func GfnDouble(input []byte, blockSize int) []byte {
 		shifted := ShiftBytesLeft(input)
 		shifted[7] ^= ((input[0] >> 7) * 0x87)
 		return shifted
+	case 12: // 96 bits (Curupira-specific implementation)
+		if len(input) != 12 {
+			panic("Doubling in GFn only implemented for n = 96")
+		}
+		shifted := ShiftBytesLeft(input)
+		shifted[11] ^= ((input[0] >> 7) * 0x87)
+		return shifted
 	case 16: // 128 bits
 		if len(input) != 16 {
 			panic("Doubling in GFn only implemented for n = 128")
